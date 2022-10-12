@@ -12,7 +12,7 @@ import (
 func main() {
 
 	dockerfileContent := "FROM registry.access.redhat.com/ubi8/ubi-micro:8.5-836 as BASE"
-	tagRegex := "^[0-9]+\\.[0-9]+\\.[0-9]+-[0-9a-z]+$"
+	tagRegex := "^[0-9]+\\.[0-9]+-[0-9]+$"
 	filename := ""
 	if len(os.Args) >= 2 {
 		filename = os.Args[1]
