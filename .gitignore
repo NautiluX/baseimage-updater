@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+baseimage-updater
 
 # Test binary, built with `go test -c`
 *.test
