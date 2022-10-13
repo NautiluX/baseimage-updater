@@ -11,7 +11,7 @@ COPY . .
 # RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod vendor -o manager main.go
 RUN make go-build
 
-FROM registry.access.redhat.com/ubi8/ubi-micro:8.6-484
+FROM registry.access.redhat.com/ubi8/ubi-micro:8.4-0
 WORKDIR /
 COPY --from=builder /workspace/build/_output/bin/* /manager
 USER nonroot:nonroot
