@@ -1,0 +1,13 @@
+package baseimg_test
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+func TestBaseimg(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Baseimg Suite")
+}
