@@ -16,11 +16,19 @@ var _ = Describe("Baseimg", func() {
 			dockerfile = rmoDockerfile("registry.access.redhat.com/ubi8/ubi-micro:8.4-0")
 		})
 		It("Updates the ubi-micro base image", func() {
-			newDockerfile, err := UpdateBaseImages(dockerfile, "^[0-9]+\\.[0-9]+-[0-9]+$")
+			updater, err := NewBaseImageUpdater(dockerfile, "^[0-9]+\\.[0-9]+-[0-9]+$")
+			Expect(err).NotTo(HaveOccurred())
+			newDockerfile, err := updater.UpdateBaseImages()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(newDockerfile).NotTo(Equal(rmoDockerfile("registry.access.redhat.com/ubi8/ubi-micro:8.4-0")))
 		})
 	})
+	Context("When multiple FROM commands exist in the dockerfile", func() {})
+	Context("When some base image tag doesn't match the base image regex", func() {})
+	Context("When some tags don't match the base image regex", func() {})
+	Context("When some tags have a greater minor version number", func() {})
+	Context("When some tags have a greater prerelease version number", func() {})
+	Context("When some tags have a non-numeric prerelease version number", func() {})
 })
 
 func rmoDockerfile(image string) string {

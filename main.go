@@ -27,7 +27,11 @@ func main() {
 		tagRegex = os.Args[2]
 	}
 	log.SetLevel(log.TraceLevel)
-	newDockerfile, err := baseimg.UpdateBaseImages(dockerfileContent, tagRegex)
+	updater, err := baseimg.NewBaseImageUpdater(dockerfileContent, tagRegex)
+	if err != nil {
+		log.Errorf("Failed to initialize base image updater in dockerfile: %v\n", err)
+	}
+	newDockerfile, err := updater.UpdateBaseImages()
 	if err != nil {
 		log.Errorf("Failed to update base images in dockerfile: %v\n", err)
 	}

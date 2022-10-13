@@ -13,17 +13,34 @@ import (
 	"github.com/asottile/dockerfile"
 )
 
-func UpdateBaseImages(input string, tagRegex string) (output string, err error) {
-	output = input
-	myReader := strings.NewReader(input)
+type BaseImageUpdater struct {
+	Dockerfile string
+	TagRegex   string
+	tagRe      *regexp.Regexp
+}
+
+func NewBaseImageUpdater(dockerfile string, tagRegex string) (*BaseImageUpdater, error) {
+
+	tagRe, err := regexp.Compile(tagRegex)
+	if err != nil {
+		return &BaseImageUpdater{}, fmt.Errorf("can't parse tag regex: %v", err)
+	}
+
+	return &BaseImageUpdater{dockerfile, tagRegex, tagRe}, nil
+
+}
+
+func (b *BaseImageUpdater) UpdateBaseImages() (output string, err error) {
+	output = b.Dockerfile
+	myReader := strings.NewReader(b.Dockerfile)
 	commands, err := dockerfile.ParseReader(myReader)
 	if err != nil {
-		return input, fmt.Errorf("can't read input string: %v", err)
+		return output, fmt.Errorf("can't read input string: %v", err)
 	}
 	for _, cmd := range commands {
-		newCommand, err := processDockerfileCommand(cmd, tagRegex)
+		newCommand, err := b.processDockerfileCommand(cmd)
 		if err != nil {
-			return input, fmt.Errorf("failed to parse command %s: %v", input, err)
+			return output, fmt.Errorf("failed to parse command %s: %v", output, err)
 		}
 		if newCommand == cmd.Original {
 			continue
@@ -36,7 +53,7 @@ func UpdateBaseImages(input string, tagRegex string) (output string, err error) 
 	return
 }
 
-func processDockerfileCommand(cmd dockerfile.Command, tagRegex string) (string, error) {
+func (b *BaseImageUpdater) processDockerfileCommand(cmd dockerfile.Command) (string, error) {
 	if strings.ToUpper(cmd.Cmd) != "FROM" {
 		return cmd.Original, nil
 	}
@@ -52,15 +69,16 @@ func processDockerfileCommand(cmd dockerfile.Command, tagRegex string) (string, 
 			log.Infof("failed to initialize registry querier: for value %s: %v. Ignoring", value, err)
 			continue
 		}
-		tags, err := registryQuerier.ListTags()
 		newestVersion := registryQuerier.GetTag()
+
+		tags, err := registryQuerier.ListTags()
 		if err != nil {
 			log.Infof("failed to query registry %s for tags: %v. Ignoring", value, err)
 			continue
 		}
 
 		for _, tag := range tags {
-			validNewerVersion, err := isNewerVersion(newestVersion, tag, tagRegex)
+			validNewerVersion, err := b.isNewerVersion(newestVersion, tag)
 			if err != nil {
 				return cmd.Original, fmt.Errorf("failed to parse version %s: %v", tag, err)
 			}
@@ -81,13 +99,9 @@ func processDockerfileCommand(cmd dockerfile.Command, tagRegex string) (string, 
 	return cmd.Original, nil
 }
 
-func isNewerVersion(newestVersion, tag string, tagRegex string) (bool, error) {
-	tagRe, err := regexp.Compile(tagRegex)
-	if err != nil {
-		return false, fmt.Errorf("can't parse tag regex: %v", err)
-	}
-	if !tagRe.Match([]byte(tag)) {
-		log.Tracef("Tag %s doesn't match tag regex %s. Ignoring.\n", tag, tagRegex)
+func (b *BaseImageUpdater) isNewerVersion(newestVersion, tag string) (bool, error) {
+	if !b.tagRe.Match([]byte(tag)) {
+		log.Tracef("Tag %s doesn't match tag regex %s. Ignoring.\n", tag, b.TagRegex)
 		return false, nil
 	}
 	log.Trace(tag)
