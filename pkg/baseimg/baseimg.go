@@ -6,12 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	registry "github.com/NautiluX/baseimage-updater/pkg/registry"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/Masterminds/semver"
 	"github.com/asottile/dockerfile"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 func UpdateBaseImages(input string, tagRegex string) (output string, err error) {
@@ -47,24 +46,19 @@ func processDockerfileCommand(cmd dockerfile.Command, tagRegex string) (string, 
 		if strings.ToUpper(value) == "AS" {
 			break
 		}
-		ref, err := name.ParseReference(value)
+
+		registryQuerier, err := registry.NewQuerier(value)
 		if err != nil {
-			log.Infof("Couldn't parse image %s, ignoring.\n", value)
+			log.Infof("failed to initialize registry querier: for value %s: %v. Ignoring", value, err)
+			continue
+		}
+		tags, err := registryQuerier.ListTags()
+		newestVersion := registryQuerier.GetTag()
+		if err != nil {
+			log.Infof("failed to query registry %s for tags: %v. Ignoring", value, err)
 			continue
 		}
 
-		log.Infof("Identifier: %s\n", ref.Identifier())
-		log.Infof("Name: %s\n", ref.Name())
-		log.Infof("RegistryStr: %s\n", ref.Context().RegistryStr())
-		log.Infof("RepositoryStr: %s\n", ref.Context().RepositoryStr())
-		repository := ref.Context().RepositoryStr()
-		tags, err := remote.List(ref.Context(), remote.WithPageSize(10000))
-		if err != nil {
-			log.Infof("Couldn't list repository %s, ignoring.\n", repository)
-			continue
-		}
-
-		newestVersion := ref.Identifier()
 		for _, tag := range tags {
 			validNewerVersion, err := isNewerVersion(newestVersion, tag, tagRegex)
 			if err != nil {
@@ -75,13 +69,13 @@ func processDockerfileCommand(cmd dockerfile.Command, tagRegex string) (string, 
 			}
 		}
 		log.Infof("Newest version found: %s\n", newestVersion)
-		newTag := ref.Context().Tag(newestVersion).Name()
+		newTag := registryQuerier.GetFullTag(newestVersion)
 		log.Infof("Newest tag found: %s\n", newTag)
-		if newTag == ref.Name() {
+		if newTag == registryQuerier.GetName() {
 			log.Info("No version change, not touching FROM line.")
 			continue
 		}
-		newFrom := strings.ReplaceAll(cmd.Original, ref.Name(), newTag)
+		newFrom := strings.ReplaceAll(cmd.Original, registryQuerier.GetName(), newTag)
 		return newFrom, nil
 	}
 	return cmd.Original, nil
