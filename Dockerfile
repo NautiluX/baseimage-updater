@@ -13,6 +13,5 @@ RUN make build
 FROM registry.access.redhat.com/ubi8/ubi-micro:8.6-484
 WORKDIR /
 COPY --from=builder /workspace/baseimage-updater /baseimage-updater
-USER nonroot:nonroot
 
 ENTRYPOINT ["/baseimage-updater"]
