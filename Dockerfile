@@ -8,12 +8,11 @@ COPY go.sum go.sum
 COPY . .
 
 # Build
-# RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod vendor -o manager main.go
-RUN make go-build
+RUN make build
 
-FROM registry.access.redhat.com/ubi8/ubi-micro:8.4-0
+FROM registry.access.redhat.com/ubi8/ubi-micro:8.6-484
 WORKDIR /
-COPY --from=builder /workspace/build/_output/bin/* /manager
+COPY --from=builder /workspace/baseimage-updater /baseimage-updater
 USER nonroot:nonroot
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/baseimage-updater"]
