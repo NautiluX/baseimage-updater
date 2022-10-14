@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/asottile/dockerfile v3.1.0+incompatible
+	github.com/golang/mock v1.6.0
 	github.com/google/go-containerregistry v0.11.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/onsi/ginkgo/v2 v2.3.1

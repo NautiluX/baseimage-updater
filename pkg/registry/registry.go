@@ -9,26 +9,20 @@ import (
 )
 
 type Querier struct {
-	Registry  string
-	reference name.Reference
 }
 
-func NewQuerier(registry string) (*Querier, error) {
-	ref, err := name.ParseReference(registry)
-	if err != nil {
-		return &Querier{}, fmt.Errorf("couldn't parse image %s: %v", registry, err)
-	}
-	r := Querier{registry, ref}
-	return &r, nil
+func NewQuerier() *Querier {
+	r := Querier{}
+	return &r
 }
 
-func (q *Querier) ListTags() (tags []string, err error) {
-	log.Infof("Identifier: %s\n", q.reference.Identifier())
-	log.Infof("Name: %s\n", q.reference.Name())
-	log.Infof("RegistryStr: %s\n", q.reference.Context().RegistryStr())
-	log.Infof("RepositoryStr: %s\n", q.reference.Context().RepositoryStr())
-	repository := q.reference.Context().RepositoryStr()
-	tags, err = remote.List(q.reference.Context(), remote.WithPageSize(10000))
+func (q *Querier) ListTags(registry string) (tags []string, err error) {
+	log.Infof("Identifier: %s\n", q.reference(registry).Identifier())
+	log.Infof("Name: %s\n", q.reference(registry).Name())
+	log.Infof("RegistryStr: %s\n", q.reference(registry).Context().RegistryStr())
+	log.Infof("RepositoryStr: %s\n", q.reference(registry).Context().RepositoryStr())
+	repository := q.reference(registry).Context().RepositoryStr()
+	tags, err = remote.List(q.reference(registry).Context(), remote.WithPageSize(10000))
 	if err != nil {
 		err = fmt.Errorf("couldn't list repository %s: %v", repository, err)
 		return
@@ -36,14 +30,22 @@ func (q *Querier) ListTags() (tags []string, err error) {
 	return
 }
 
-func (q *Querier) GetTag() string {
-	return q.reference.Identifier()
+func (q *Querier) GetTag(registry string) string {
+	return q.reference(registry).Identifier()
 }
 
-func (q *Querier) GetName() string {
-	return q.reference.Name()
+func (q *Querier) GetName(registry string) string {
+	return q.reference(registry).Name()
 }
 
-func (q *Querier) GetFullTag(tag string) string {
-	return q.reference.Context().Tag(tag).Name()
+func (q *Querier) GetFullTag(registry string, tag string) string {
+	return q.reference(registry).Context().Tag(tag).Name()
+}
+
+func (q *Querier) reference(registry string) name.Reference {
+	ref, err := name.ParseReference(registry)
+	if err != nil {
+		log.Errorf("couldn't parse image %s: %v", registry, err)
+	}
+	return ref
 }
