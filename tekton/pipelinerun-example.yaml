@@ -1,0 +1,32 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  labels:
+    tekton.dev/pipeline: baseimage-update
+  name: example-baseimage-update-run
+  namespace: baseimage
+spec:
+  pipelineRef:
+    name: baseimage-update
+  serviceAccountName: pipeline
+  timeout: 1h0m0s
+  params:
+  - name: github-repo
+    value: "NautiluX/baseimage-example"
+  - name: github-email
+    value: "prbot@ntlx.org"
+  - name: tag-regex
+    value: "[0-9]+\\.[0-9]+-[0-9]+"
+  - name: github-user
+    value: "NautiluX"
+  - name: dockerfile-path
+    value: "Dockerfile"
+  workspaces:
+  - name: source-repo
+    subPath: workspace
+    persistentVolumeClaim:
+      claimName: baseimageupdate-workspace
+  - name: github-token
+    secret:
+      secretName: github

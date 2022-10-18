@@ -2,12 +2,23 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: example-baseimage-update
+  name: baseimage-update
   namespace: baseimage
 spec:
   workspaces:
   - name: source-repo
   - name: github-token
+  params:
+  - name: github-repo
+    type: string
+  - name: github-email
+    type: string
+  - name: tag-regex
+    type: string
+  - name: github-user
+    type: string
+  - name: dockerfile-path
+    type: string
   tasks:
   - name: fetch-repo
     taskRef:
@@ -17,15 +28,21 @@ spec:
       workspace: source-repo
     params:
     - name: url
-      value: https://github.com/NautiluX/baseimage-example
+      value: https://github.com/$(params.github-repo)
     - name: revision
       value: main
   - name: cat-dockerfile
+    params:
+    - name: dockerfile-path
+      value: $(params.dockerfile-path)
     runAfter: ["fetch-repo"]
     workspaces:
     - name: source-repo
       workspace: source-repo
     taskSpec:
+      params:
+      - name: dockerfile-path
+        type: string
       workspaces:
       - name: source-repo
       steps:
@@ -35,25 +52,41 @@ spec:
           #!/usr/bin/env bash
 
           find $(workspaces.source-repo.path)
-          cat $(workspaces.source-repo.path)/Dockerfile
+          cat $(workspaces.source-repo.path)/$(params.dockerfile-path)
   - name: update-dockerfile
     runAfter: ["cat-dockerfile"]
+    params:
+    - name: dockerfile-path
+      value: $(params.dockerfile-path)
+    - name: tag-regex
+      value: $(params.tag-regex)
     workspaces:
     - name: source-repo
       workspace: source-repo
     taskSpec:
+      params:
+      - name: tag-regex
+        type: string
+      - name: dockerfile-path
+        type: string
       workspaces:
       - name: source-repo
       steps:
       - name: update
         image: quay.io/mdewald/baseimage-updater
-        args: ["$(workspaces.source-repo.path)/Dockerfile", "^[0-9]+\\.[0-9]+-[0-9]+$"]
+        args: ["$(workspaces.source-repo.path)/$(params.dockerfile-path)", "$(params.tag-regex)"]
   - name: cat-dockerfile-after
     runAfter: ["update-dockerfile"]
+    params:
+    - name: dockerfile-path
+      value: $(params.dockerfile-path)
     workspaces:
     - name: source-repo
       workspace: source-repo
     taskSpec:
+      params:
+      - name: dockerfile-path
+        type: string
       workspaces:
       - name: source-repo
       steps:
@@ -63,15 +96,33 @@ spec:
           #!/usr/bin/env bash
 
           find $(workspaces.source-repo.path)
-          cat $(workspaces.source-repo.path)/Dockerfile
+          cat $(workspaces.source-repo.path)/$(params.dockerfile-path)
   - name: push
     runAfter: ["cat-dockerfile-after"]
+    params:
+    - name: dockerfile-path
+      value: $(params.dockerfile-path)
+    - name: github-repo
+      value: $(params.github-repo)
+    - name: github-user
+      value: $(params.github-user)
+    - name: github-email
+      value: $(params.github-email)
     workspaces:
     - name: github-token
       workspace: github-token
     - name: source-repo
       workspace: source-repo
     taskSpec:
+      params:
+      - name: dockerfile-path
+        type: string
+      - name: github-repo
+        type: string
+      - name: github-user
+        type: string
+      - name: github-email
+        type: string
       workspaces:
       - name: source-repo
       - name: github-token
@@ -83,12 +134,12 @@ spec:
           cd $(workspaces.source-repo.path)
           find $(workspaces.github-token.path)
           TOKEN=`cat $(workspaces.github-token.path)/token`
-          git config --global user.email "baseimagebot@ntlx.org"
-          git config --global user.name "NautiluX"
+          git config --global user.email "$(params.github-email)"
+          git config --global user.name "$(params.github-user)"
           git config --global --add safe.directory /workspace/source-repo
-          git remote add upstream https://NautiluX:$TOKEN@github.com/NautiluX/baseimage-example
+          git remote add upstream https://$(params.github-user):$TOKEN@github.com/$(params.github-repo)
           git checkout -b update-baseimage
-          git add Dockerfile
+          git add $(params.dockerfile-path)
           git commit -m "Update baseimage"
           git push upstream HEAD -f
   - name: open-pr
@@ -97,7 +148,7 @@ spec:
       name: github-open-pr
     params:
     - name: REPO_FULL_NAME
-      value: NautiluX/baseimage-example
+      value: $(params.github-repo)
     - name: HEAD
       value: update-baseimage
     - name: BASE
@@ -106,24 +157,3 @@ spec:
       value: "Automated baseimage update"
     - name: BODY
       value: "Automated baseimage update"
----
-apiVersion: tekton.dev/v1beta1
-kind: PipelineRun
-metadata:
-  labels:
-    tekton.dev/pipeline: example-baseimage-update
-  name: example-baseimage-update-run
-  namespace: baseimage
-spec:
-  pipelineRef:
-    name: example-baseimage-update
-  serviceAccountName: pipeline
-  timeout: 1h0m0s
-  workspaces:
-  - name: source-repo
-    subPath: workspace
-    persistentVolumeClaim:
-      claimName: baseimageupdate-workspace
-  - name: github-token
-    secret:
-      secretName: github
