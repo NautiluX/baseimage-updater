@@ -130,7 +130,6 @@ spec:
       - name: push
         image: alpine/git
         script: |
-          set -x
           cd $(workspaces.source-repo.path)
           find $(workspaces.github-token.path)
           TOKEN=`cat $(workspaces.github-token.path)/token`
